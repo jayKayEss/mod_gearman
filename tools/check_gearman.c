@@ -22,6 +22,7 @@
  *****************************************************************************/
 
 /* include header */
+#include <sys/time.h>
 #include "check_gearman.h"
 #include "utils.h"
 #include "gearman.h"
@@ -308,6 +309,8 @@ int check_worker(char * queue, char * to_send, char * expect) {
     char * result;
     size_t result_size;
     char * job_handle;
+    char unique_name[22];
+    struct timeval tv;
 
     /* create client */
     if ( create_client( server_list, &client ) != GM_OK ) {
@@ -317,12 +320,14 @@ int check_worker(char * queue, char * to_send, char * expect) {
     gearman_client_set_timeout(&client, (opt_timeout-1)*1000/server_list_num);
 
     while (1) {
+        gettimeofday(&tv, NULL);
+        sprintf(unique_name, "check_%010lu%06lu", tv.tv_sec, tv.tv_usec);
         if (send_async) {
             result = "";
             job_handle = malloc(GEARMAN_JOB_HANDLE_SIZE * sizeof(char));
             ret= gearman_client_do_high_background( &client,
                                                     queue,
-                                                    "check",
+                                                    unique_name,
                                                     (void *)to_send,
                                                     (size_t)strlen(to_send),
                                                     job_handle);
@@ -331,7 +336,7 @@ int check_worker(char * queue, char * to_send, char * expect) {
         else {
             result= (char *)gearman_client_do_high( &client,
                                                     queue,
-                                                    "check",
+                                                    unique_name,
                                                     (void *)to_send,
                                                     (size_t)strlen(to_send),
                                                     &result_size,
